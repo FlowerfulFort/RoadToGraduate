@@ -1,5 +1,6 @@
 import os
-from scipy.misc import imread
+# from scipy.misc import imread
+from imageio import imread
 
 from dataset.abstract_image_type import AbstractImageType
 
@@ -10,7 +11,8 @@ class RawImageType(AbstractImageType):
     """
     def __init__(self, paths, fn, fn_mapping, has_alpha):
         super().__init__(paths, fn, fn_mapping, has_alpha)
-        self.im = imread(os.path.join(self.paths['images'], self.fn), mode='RGB')
+        # self.im = imread(os.path.join(self.paths['images'], self.fn), mode='RGB')
+        self.im = imread(os.path.join(self.paths['images'], self.fn))
 
     def read_image(self):
         im = self.im[...,:-1] if self.has_alpha else self.im

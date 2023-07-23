@@ -80,12 +80,18 @@ class Estimator:
         if training:
             loss.backward()
 
-        meter['loss'] += loss.data.cpu().numpy()[0]
-        meter['dice'] += d.data.cpu().numpy()[0] / iter_size
-        # meter['jacc'] += jacc.data.cpu().numpy()[0] / iter_size
-        meter['bce'] += bce.data.cpu().numpy()[0] / iter_size
-        meter['dr'] += dice_r.data.cpu().numpy()[0] / iter_size
-        # meter['jr'] += jacc_r.data.cpu().numpy()[0] / iter_size
+        # # meter['loss'] += loss.data.cpu().numpy()[0]
+        # meter['loss'] += loss
+        # meter['dice'] += d.data.cpu().numpy()[0] / iter_size
+        # # meter['jacc'] += jacc.data.cpu().numpy()[0] / iter_size
+        # meter['bce'] += bce.data.cpu().numpy()[0] / iter_size
+        # meter['dr'] += dice_r.data.cpu().numpy()[0] / iter_size
+        # # meter['jr'] += jacc_r.data.cpu().numpy()[0] / iter_size
+        meter['loss'] += loss.item()
+        meter['dice'] += d.item() / iter_size
+        meter['bce'] += bce.item() / iter_size
+        meter['dr'] += dice_r.item() / iter_size
+
         return meter
 
     def make_step_itersize(self, images, ytrues, training):
@@ -98,8 +104,8 @@ class Estimator:
 
         meter = defaultdict(float)
         for input, target in zip(inputs, targets):
-            input = torch.autograd.Variable(input.cuda(async=True), volatile=not training)
-            target = torch.autograd.Variable(target.cuda(async=True), volatile=not training)
+            input = torch.autograd.Variable(input.cuda(non_blocking=True), volatile=not training)
+            target = torch.autograd.Variable(target.cuda(non_blocking=True), volatile=not training)
             output = self.model(input)
             meter = self.calculate_loss_single_channel(output, target, meter, training, iter_size)
 

@@ -29,8 +29,9 @@ if args.fold is not None:
     skip_folds = [i for i in range(4) if i != int(args.fold)]
 
 test = not args.training
-config = update_config(config, dataset_path=os.path.join(config.dataset_path, 'test' if test else 'train'))
-
+# config = update_config(config, dataset_path=os.path.join(config.dataset_path, 'test' if test else 'train'))
+config = update_config(config, dataset_path=os.path.join('/opt', 'datasets', 'train'))
+# config.dataset_path = '/opt/datasets/train'
 paths = {
     'masks': os.path.join(config.dataset_path, 'masks2m'),
     'images': os.path.join(config.dataset_path, 'images')
@@ -40,13 +41,16 @@ fn_mapping = {
     'masks': lambda name: os.path.splitext(name)[0] + '.png'
 }
 
-image_suffix = 'img'
+# image_suffix = 'img'
+image_suffix=None
 
 def train_roads():
     ds = ReadingImageProvider(RawImageType, paths, fn_mapping, image_suffix=image_suffix)
 
-    folds = get_csv_folds('folds4.csv', ds.im_names)
-    num_workers = 0 if os.name == 'nt' else 2
+    # folds = get_csv_folds('folds4.csv', ds.im_names)
+    folds = get_csv_folds('folds.csv', ds.im_names)
+    # num_workers = 0 if os.name == 'nt' else 2
+    num_workers=2
     for fold, (train_idx, val_idx) in enumerate(folds):
         if args.fold is not None and int(args.fold) != fold:
             continue
@@ -64,7 +68,8 @@ def eval_roads():
     ds = ReadingImageProvider(RawImageTypePad, paths, fn_mapping, image_suffix=image_suffix)
 
     folds = [([], list(range(len(ds)))) for i in range(4)]
-    num_workers = 0 if os.name == 'nt' else 2
+    # num_workers = 0 if os.name == 'nt' else 2
+    num_workers=2
     keval = FullImageEvaluator(config, ds, test=test, flips=3, num_workers=num_workers, border=22)
     for fold, (t, e) in enumerate(folds):
         if args.fold is not None and int(args.fold) != fold:
