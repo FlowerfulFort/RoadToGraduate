@@ -27,4 +27,5 @@ class RawImageType(AbstractImageType):
         return self.finalyze(self.im[...,-1])
 
     def finalyze(self, data):
-        return self.reflect_border(data)
+        return self.reflect_border(data, 22)
+        #return self.reflect_border(data)

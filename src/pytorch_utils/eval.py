@@ -96,7 +96,8 @@ class Evaluator:
     def cut_border(self, image):
         if image is None:
             return None
-        return image if not self.border else image[self.border:-self.border, self.border:-self.border, ...]
+        #return image if not self.border else image[self.border:-self.border, self.border:-self.border, ...]
+        return image
 
     def on_image_constructed(self, name, prediction, prefix=""):
         prediction = self.cut_border(prediction)

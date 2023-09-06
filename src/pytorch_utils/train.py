@@ -1,6 +1,5 @@
-import os
 from collections import defaultdict
-
+import os
 import torch
 import torch.nn.functional as F
 from torch import nn
@@ -232,4 +231,5 @@ def train(ds, fold, train_idx, val_idx, config, val_ds=None, num_workers=0, tran
                                    num_workers=num_workers,
                                    pin_memory=True)
 
+    #trainer.fit(train_loader, val_loader, 1)
     trainer.fit(train_loader, val_loader, config.nb_epoch)
