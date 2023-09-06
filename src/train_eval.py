@@ -32,11 +32,11 @@ test = not args.training
 # config = update_config(config, dataset_path=os.path.join(config.dataset_path, 'test' if test else 'train'))
 config = update_config(config, dataset_path=os.path.join('/opt', 'datasets', 'train'))
 # config.dataset_path = '/opt/datasets/train'
+
 paths = {
     'masks': os.path.join(config.dataset_path, 'masks2m'),
     'images': os.path.join(config.dataset_path, 'images')
 }
-
 fn_mapping = {
     'masks': lambda name: os.path.splitext(name)[0] + '.png'
 }
@@ -50,7 +50,7 @@ def train_roads():
     # folds = get_csv_folds('folds4.csv', ds.im_names)
     folds = get_csv_folds('folds.csv', ds.im_names)
     # num_workers = 0 if os.name == 'nt' else 2
-    num_workers=2
+    num_workers=16
     for fold, (train_idx, val_idx) in enumerate(folds):
         if args.fold is not None and int(args.fold) != fold:
             continue
@@ -63,22 +63,26 @@ class RawImageTypePad(RawImageType):
 
 def eval_roads():
     global config
-    rows, cols = 1344, 1344
+    # rows, cols = 1344, 1344
+    rows, cols = 512, 512
     config = update_config(config, target_rows=rows, target_cols=cols)
     ds = ReadingImageProvider(RawImageTypePad, paths, fn_mapping, image_suffix=image_suffix)
 
     folds = [([], list(range(len(ds)))) for i in range(4)]
     # num_workers = 0 if os.name == 'nt' else 2
-    num_workers=2
+    num_workers=16
     keval = FullImageEvaluator(config, ds, test=test, flips=3, num_workers=num_workers, border=22)
     for fold, (t, e) in enumerate(folds):
         if args.fold is not None and int(args.fold) != fold:
             continue
         keval.predict(fold, e)
+        break
 
 
 if __name__ == "__main__":
     if test:
+        print('eval start')
         eval_roads()
     else:
+        print('train start')
         train_roads()

@@ -25,5 +25,5 @@ class Resnet(EncoderDecoder):
 
 class Resnet34_upsample(Resnet):
     def __init__(self, num_classes, num_channels=3):
-        super().__init__(num_classes, num_channels, encoder_name='resnet34')
-
+       super().__init__(num_classes, num_channels, encoder_name='resnet34')
+ 

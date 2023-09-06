@@ -193,3 +193,4 @@ def resnet152(**kwargs):
     """
     model = ResNet(Bottleneck, [3, 8, 36, 3], **kwargs)
     return model
+
