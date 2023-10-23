@@ -47,11 +47,14 @@ class AbstractImageType:
     def read_mask(self):
         raise NotImplementedError
 
+    """
     def reflect_border(self, image, b=12):
-        # return cv2.copyMakeBorder(image, b, b, b, b, cv2.BORDER_REFLECT)
-        return cv2.copyMakeBorder(image, 2 * b, 0, 2 * b, 0, cv2.BORDER_REFLECT)
+         #return cv2.copyMakeBorder(image, b, b, b, b, cv2.BORDER_REFLECT)
+        #return cv2.copyMakeBorder(image, 2 * b, 0, 2 * b, 0, cv2.BORDER_REFLECT)
+        return cv2.copyMakeBorder(image, 0, 0, 0, 0, cv2.BORDER_REFLECT)
         # 시도해볼만은 한가?
-
+    """
+    
     def pad_image(self, image, rows, cols):
         channels = image.shape[2] if len(image.shape) > 2 else None
         if image.shape[:2] != (rows, cols):
@@ -61,6 +64,7 @@ class AbstractImageType:
         return image
 
     def finalyze(self, image):
-        return self.reflect_border(image, 22)
+        #return reflect_border(image, 22)
+        return image
 
 

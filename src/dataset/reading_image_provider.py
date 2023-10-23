@@ -6,6 +6,7 @@ from .abstract_image_provider import AbstractImageProvider
 class ReadingImageProvider(AbstractImageProvider):
     def __init__(self, image_type, paths, fn_mapping=lambda name: name, image_suffix=None, has_alpha=False):
         super(ReadingImageProvider, self).__init__(image_type, fn_mapping, has_alpha=has_alpha)
+        print(paths['images'])
         self.im_names = os.listdir(paths['images'])
         if image_suffix is not None:
             self.im_names = [n for n in self.im_names if image_suffix in n]

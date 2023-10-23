@@ -20,7 +20,6 @@ class FullImageEvaluator(Evaluator):
     def save(self, name, prediction, prefix=""):
         cv2.imwrite(os.path.join(self.save_dir, prefix + name), (prediction * 255).astype(np.uint8))
 
-
 class CropEvaluator(Evaluator):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -43,8 +42,8 @@ class CropEvaluator(Evaluator):
                 else:
                     self.on_image_constructed(self.current_image_name, self.current_prediction / self.current_mask, prefix=prefix)
                 self.construct_big_image(geometry)
-            self.current_prediction[sy + self.border:sy + config.target_rows - self.border, sx + self.border:sx + config.target_cols - self.border] += pred
-            self.current_mask[sy+self.border:sy + config.target_rows - self.border, sx + self.border:sx + config.target_cols - self.border] += 1
+            self.current_prediction[sy + self.border:sy + config.target_rows, sx + self.border:sx + config.target_cols] += pred
+            self.current_mask[sy+self.border:sy + config.target_rows, sx + self.border:sx + config.target_cols] += 1
             self.current_image_name = name
 
     def parse_geometry(self, batch_geometry):
@@ -66,8 +65,17 @@ class CropEvaluator(Evaluator):
         self.current_prediction = np.zeros((geometry['rows'], geometry['cols']), np.float32)
 
     def save(self, name, prediction, prefix=""):
-        cv2.imwrite(os.path.join(self.save_dir, prefix + name), (prediction * 255).astype(np.uint8))
-
+        dir_ = os.path.dirname(os.path.abspath(name))
+        index1 = name.rfind("_")
+        name1 = name[:index1]
+        index2 = name1.rfind("_")
+        dir_name = name1[:index2]
+        if not os.path.exists(os.path.join(dir_, dir_name)):
+            os.makedirs(os.path.join(dir_, dir_name))
+        cv2.imwrite(os.path.join(os.path.join(dir_, dir_name), prefix + name), (prediction * 255).astype(np.uint8))
+        
+        #cv2.imwrite(os.path.join('/results', 'full', prefix + name), (prediction * 255).astype(np.uint8))
+        
     def post_predict_action(self, prefix):
         self.on_image_constructed(self.current_image_name, self.current_prediction / self.current_mask, prefix=prefix)
         self.current_image_name = None
