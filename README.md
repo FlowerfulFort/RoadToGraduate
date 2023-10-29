@@ -1,103 +1,88 @@
-**Marathon Match - Solution Description**
+## 모델 구조
 
-**Overview**
+Resnet34를 기반으로 하는 Unet
 
-1.	Introduction
-Tell us a bit about yourself, and why you have decided to participate in the contest.
+Resnet34: X -> 64 -> 128 -> 256 -> 512
 
-    Name: Alexander Buslaev
-    Handle: albu
+pytorch_zoo/resnet.py, pytorch_zoo/unet.py 참조.
 
+## 모델 학습
 
-**2.** **Solution Development**
+1. other_tools/gen_folds.py를 이용하여 현재 dataset에 맞는 folds.csv를 생성.
+2. dataset의 경로를 설정.
+    - /path/to/dataset/images: 학습에 필요한 이미지셋
+    - /path/to/dataset/masks2m: 학습에 필요한 도로 마스크 이미지셋
+3. resnet34_412_02_02.json에서 경로, batch_size 등을 수정.
+4. train_eval.py 에서 num_workers를 조정.(메모리 오류가 나지 않는 선에서)
+5. train_eval.py resnet34_412_02_02.json --training
 
-How did you solve the problem? What approaches did you try and what choices did you make, and why? Also, what alternative approaches did you consider?
+## Prediction
 
-- **●●** Start from generating dataset because semantic segmentation works on pairs (image, mask). For that, I used a tool from [https://github.com/CosmiQ/apls](https://github.com/CosmiQ/apls) repository.
-- **●●** I decided to use only RGB channels because I think for such hard task and so little data lesser amount of features (channels) should be better.
-- **●●** To generate masks I used your tool and just drew all roads with width 2m. Also tried 1m and 3m but 2m was better.
-- **●●** Scaled RGB channels to the same range in this way: find mean min/max for all tiles per city in train dataset and scaled images to this range.
-- **●●** After it, I tried some architectures based on resnet34/resnet50/inceptionv3 encoders and unet-like decoder.
-- **●●** The hardest part was to transform probability map to a graph. I found sknw package in github and ran it on binarized probability maps. Most annoying problems were – gaps due to not perfect segmentation (mostly on crossroads), multigraphs, noise, and uncertainty on borders. I will describe solutions for them in next section.
+```python
+# src/pytorch_utils/eval.py 참조.
+def predict(model, batch, flips=flip.FLIP_NONE):
+    # predict with tta on gpu
+    pred1 = F.sigmoid(model(batch))
+    if flips > flip.FLIP_NONE:
+        pred2 = flip_tensor_lr(model(flip_tensor_lr(batch)))
+        masks = [pred1, pred2]
+        if flips > flip.FLIP_LR:
+            pred3 = flip_tensor_ud(model(flip_tensor_ud(batch)))
+            pred4 = flip_tensor_ud(flip_tensor_lr(model(flip_tensor_ud(flip_tensor_lr(batch)))))
+            masks.extend([pred3, pred4])
+        masks = list(map(F.sigmoid, masks))
+        new_mask = torch.mean(torch.stack(masks, 0), 0)
+        return to_numpy(new_mask)
+    return to_numpy(pred1)
+```
 
-**3.** **Final Approach**
+flip_tensor_XX 메소드로 상하좌우 뒤집어 가며 prediction, 이들의 평균치로 새로운 마스크를 만들어 내어 저장함.
 
-Please provide a bulleted description of your final approach. What ideas/decisions/features have been found to be the most important for your solution performance:
+```python
+# src/train_eval.py
+keval = FullImageEvaluator(config, ds, test=test, flips=3, num_workers=num_workers, border=22)
+```
 
-Neural network part:
+flip 기본값은 3이기 때문에 항상 if를 통과하여 상하좌우 플립을 실행함.
 
-- Split data to 4 folds randomly but the same number of each city tiles in every fold
-- Use resnet34 as encoder and unet-like decoder (conv-relu-upsample-conv-relu) with skip connection from every layer of network. Loss function: 0.8\*binary\_cross\_entropy + 0.2\*(1 – dice\_coeff). Optimizer – Adam with default params.
-- Train on image crops 512\*512 with batch size 11 for 30 epoch (8 times more images in one epoch)
-- Train 20 epochs with lr 1e-4
-- Train 5 epochs with lr 2e-5
-- Train 5 epochs with lr 4e-6
-- Predict on full image with padding 22 on borders (1344\*1344).
-- Merge folds by mean
+```python
+class RawImageTypePad(RawImageType):
+    def finalyze(self, data):
+        return self.reflect_border(data, 22)
 
-Image to graph part:
+def eval_roads():
+    global config
+    rows, cols = 1344, 1344
+    config = update_config(config, target_rows=rows, target_cols=cols)
+    ds = ReadingImageProvider(RawImageTypePad, paths, fn_mapping, image_suffix=image_suffix)
 
-- Take probability map and threshold it, remove some noise - small objects and small holes (lesser than 300 pix area)
-- On binary image run skeletonization algorithm to generate thin representation.
-- On skeleton image run sknw – transform skeleton to a graph.
-- Now it is multi-graph with vertices on crossroads and we need to transform it to graph with straight edges. For each edge I ran approximation algorithm from opencv, so now each edge is represented as a sequence of straight segments, we just need to add them to a graph.
-- In addition, there was uncertainty on borders: if tile cut by a road – we have part of road on this tile, but the center of the road could be on another tile. If we would have relative tile positions during a test – we could also use adjacent tiles. However, for this competition, it was not clear if we could use such information in a testing phase, so I just cut border a little to distribute error a bit more randomly.
-- Another hint was that skeletonization does not work properly on borders – it generates lines, which go not in the middle of a region as I wish. To fix it I replicated border and skeletonize image only after it. After skeletonization, I restored image size. This error also could be solved by providing adjacent tiles.
-- Small hints just to fix obvious errors in a graph - fr all terminal vertices:
+# ...
+```
 
-\* remove it if it lies on edge lesser then 10 pixels length
+Evaluation 과정에서 상하좌우 22 만큼 reflect border를 만듬.
 
-\* connect with other if distance to it lesser then 20 pixels
+![image](https://github.com/FlowerfulFort/RoadToGraduate/assets/42996160/7d9188c3-0f7b-4a77-8d42-864fa57dde28)
 
-\* connect with other if they lie on almost on one line and distance lesser then 200pix
+모델의 예측값의 크기가 44만큼 깎여있는 것과 관련되어 있다고 생각됨.
 
-**4.** **Open Source Resources, Frameworks and Libraries**
+## 최신 python, torch과 현재 학습하는 데이터셋에 맞춰 코드 변경
 
-Please specify the name of the open source resource along with a URL to where it&#39;s housed and it&#39;s license type:
+> https://github.com/FlowerfulFort/RoadToGraduate/commit/a72919b275d1c74411cb82b0bd9facea6270c6a2
 
-- tqdm ( [https://pypi.python.org/pypi/tqdm](https://pypi.python.org/pypi/tqdm)), MPLv2, MIT
-- numpy ( [https://pypi.python.org/pypi/numpy](https://pypi.python.org/pypi/numpy)), BSD
-- pencv-python ( [https://pypi.python.org/pypi/opencv-python](https://pypi.python.org/pypi/opencv-python)), MIT
-- matplotlib ( [https://pypi.python.org/pypi/matplotlib](https://pypi.python.org/pypi/matplotlib)), BSD
-- scipy ( [https://pypi.python.org/pypi/scipy](https://pypi.python.org/pypi/scipy)), BSD
-- scikit-image ( [https://pypi.python.org/pypi/scikit-image](https://pypi.python.org/pypi/scikit-image)), Modified BSD
-- scikit-learn ( [https://pypi.python.org/pypi/scikit-learn](https://pypi.python.org/pypi/scikit-learn)), BSD
-- tensorboardX ( [https://pypi.python.org/pypi/tensorboardX](https://pypi.python.org/pypi/tensorboardX)), MIT
-- pytorch ( [http://pytorch.org/](http://pytorch.org/)), BSD
-- torchvision ( [https://pypi.python.org/pypi/torchvision](https://pypi.python.org/pypi/torchvision)), BSD
-- GDAL ( [https://anaconda.org/conda-forge/gdal](https://anaconda.org/conda-forge/gdal)), MIT
-- Sknw ( [https://github.com/yxdragon/sknw](https://github.com/yxdragon/sknw)) , BSD
-- APLS ( [https://github.com/CosmiQ/apls](https://github.com/CosmiQ/apls)) and it&#39;s requirements
-- Numba ( [https://pypi.python.org/pypi/numba](https://pypi.python.org/pypi/numba)) BSD
-- Pandas ( [https://pypi.python.org/pypi/pandas](https://pypi.python.org/pypi/pandas)), BSD
+1. scipy.misc.imread -> Deprecated
 
-**5.** **Potential Algorithm Improvements**
+    imageio.imread로 대체.
 
-Please specify any potential improvements that can be made to the algorithm:
+2. cuda(async=True) -> SyntaxError: Invalid syntax
 
--
-  -
-    - Use tile adjacency information
-    - Find more data
-    - Maybe somehow add OSM information
-    - Maybe try other network architectures (wideresnet38?)
-    - Stack more networks (on different hyperparameters, scales, crops)
+    python3.7 이후 생기는 문제. cuda(non_blocking=True)로 대체.
 
-**6.** **Algorithm Limitations**
+3. tensor.cpu().numpy()[0] -> scalar 오류
 
-Please specify any potential limitations with the algorithm:
+    tensor.item() 으로 대체.
 
-   **●●** It should not generalize to new kinds of data (big difference in weather conditions, zoom, etc); it is limitation for all machine learning algorithms.
+4. train_eval.py 내의 image_suffix를 None으로 변경.
 
-**7.** **Deployment Guide**
+## Origin source from albu
 
-Please provide the exact steps required to build and deploy the code:
-
-   **1.** Please use steps from Dockerfile. If you use clean system – you also need to install nvidia driver, cuda 8, cudnn 6.
-
-**8.** **Final Verification**
-
-Please provide instructions that explain how to train the algorithm and have it execute against sample data:
-
-   **1.** It&#39;s mostly described in &quot;final verification&quot; document
-
+> https://github.com/SpaceNetChallenge/RoadDetector/tree/master/albu-solution
