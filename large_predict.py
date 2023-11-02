@@ -132,10 +132,12 @@ def post(image_path):
         images_sorted_by_x = sorted(images_by_y[y], key=lambda x: x[0])
         vertical_combined_image = np.hstack([cv2.copyMakeBorder(img, 0, 0, 0, 0, cv2.BORDER_CONSTANT, value=(0, 0, 0)) for _, img in images_sorted_by_x])
         vertical_combined_images.append(vertical_combined_image)
-
+    
     if vertical_combined_images:
         combined_image = np.vstack(vertical_combined_images)
-        output_path = os.path.join(image_folder, f"{base_name}.png")
+        if not os.path.exists(os.path.join(image_folder , args.image_path.split('/')[-1].split('.')[0])):
+            os.makedirs(os.path.join(image_folder , args.image_path.split('/')[-1].split('.')[0]))
+        output_path = os.path.join(image_folder , args.image_path.split('/')[-1].split('.')[0], f"{base_name}.png")
         cv2.imwrite(output_path, combined_image)
         
     pre_path = os.path.join(os.path.dirname(os.path.abspath(image_path)), os.path.basename(dir_) + "_pre")
