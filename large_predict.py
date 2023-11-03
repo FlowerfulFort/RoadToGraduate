@@ -16,6 +16,7 @@ from utils import update_config, get_csv_folds
 import argparse
 import json
 from config import Config
+import shutil
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -67,7 +68,8 @@ def eval_roads(image_path):
     folds = [([], list(range(len(ds)))) for i in range(4)]
     # num_workers = 0 if os.name == 'nt' else 2
     # num_workers=0
-    num_workers=16
+    # 환경변수 EVAL_WORKER에 따라 worker 지정.
+    num_workers = int(os.getenv('EVAL_WORKER', '16'))
     keval = CropEvaluator(config, ds, test=test, flips=3, num_workers=num_workers, border=0)
     for fold, (t, e) in enumerate(folds):
         if args.fold is not None and int(args.fold) != fold:
@@ -140,6 +142,11 @@ def post(image_path):
         output_path = os.path.join(image_folder , args.image_path.split('/')[-1].split('.')[0], f"{base_name}.png")
         cv2.imwrite(output_path, combined_image)
         
+    # 합치기 전 마스크 조각 삭제
+    mask_frag_directory = args.image_path.split('/')[-1].split('.')[0]
+    if os.path.exists(mask_frag_directory):
+        shutil.rmtree(mask_frag_directory)
+
     pre_path = os.path.join(os.path.dirname(os.path.abspath(image_path)), os.path.basename(dir_) + "_pre")
     mask_path = os.path.join(os.path.dirname(image_folder), dir_)
     try:
