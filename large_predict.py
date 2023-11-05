@@ -16,6 +16,9 @@ from utils import update_config, get_csv_folds
 import argparse
 import json
 from config import Config
+from image_to_wkt import build_graph
+from functools import partial
+from multiprocessing import Pool
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -135,9 +138,7 @@ def post(image_path):
     
     if vertical_combined_images:
         combined_image = np.vstack(vertical_combined_images)
-        if not os.path.exists(os.path.join(image_folder , args.image_path.split('/')[-1].split('.')[0])):
-            os.makedirs(os.path.join(image_folder , args.image_path.split('/')[-1].split('.')[0]))
-        output_path = os.path.join(image_folder , args.image_path.split('/')[-1].split('.')[0], f"{base_name}.png")
+        output_path = os.path.join(image_folder, f"{base_name}.png")
         cv2.imwrite(output_path, combined_image)
         
     pre_path = os.path.join(os.path.dirname(os.path.abspath(image_path)), os.path.basename(dir_) + "_pre")
@@ -162,6 +163,26 @@ def post(image_path):
         os.rmdir(mask_path)
     except Exception as e:
         print(f"오류 발생: {e}")
+        
+def image_to_wkt(image_path):
+    prefix = ''
+    results_root = image_path[:-4] + "_mask.png"
+    txt_name = os.path.join(os.path.dirname(os.path.abspath(args.image_path)), args.image_path.split('/')[-1].split('.')[0] + ".txt")
+    root = os.path.join(results_root)
+    f = partial(build_graph, root)
+    #l = [v for v in os.listdir(root) if prefix in v]
+    #l = list(sorted(l))
+    l = [root]
+    with Pool() as p:
+        data = p.map(f, l)
+    all_data = []
+    for _, v in data:
+        for val in v:
+            all_data.append(val)
+            
+    with open(txt_name, 'w') as file:
+        for line in all_data:
+            file.write(line + "\n")
 
 if __name__ == "__main__":
     if args.image_path is not None:
@@ -169,4 +190,7 @@ if __name__ == "__main__":
         pre(args.image_path)
         eval_roads(args.image_path)
         post(args.image_path)
+        image_to_wkt(args.image_path)
+        
+    
     
