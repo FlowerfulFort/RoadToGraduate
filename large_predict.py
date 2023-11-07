@@ -19,6 +19,8 @@ from config import Config
 from image_to_wkt import build_graph
 from functools import partial
 from multiprocessing import Pool
+from png_to_tif import extract_tags_from_tif
+from png_to_tif import create_tif_with_tags
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -183,6 +185,14 @@ def image_to_wkt(image_path):
     with open(txt_name, 'w') as file:
         for line in all_data:
             file.write(line + "\n")
+            
+def png_to_tif(image_path):
+    tif_file_path = image_path
+    image_name = image_path[:-4]
+    png_file_path = image_name + '_mask.png'
+    output_tif_path = image_name + '_mask.tif'
+
+    create_tif_with_tags(tif_file_path, png_file_path, output_tif_path)
 
 if __name__ == "__main__":
     if args.image_path is not None:
@@ -191,6 +201,6 @@ if __name__ == "__main__":
         eval_roads(args.image_path)
         post(args.image_path)
         image_to_wkt(args.image_path)
+        png_to_tif(args.image_path)
         
-    
     
