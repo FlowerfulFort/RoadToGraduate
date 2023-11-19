@@ -1,4 +1,4 @@
-from skimage.morphology import skeletonize, remove_small_objects, remove_small_holes
+om skimage.morphology import skeletonize, remove_small_objects, remove_small_holes
 import numpy as np
 from matplotlib.pylab import plt
 import cv2
@@ -158,7 +158,8 @@ def make_skeleton(root, fn, debug, threshes, fix_borders):
     clip = 2
     rec = replicate + clip
     # open and skeletonize
-    img = cv2.imread(os.path.join(root, fn), cv2.IMREAD_GRAYSCALE)
+    # img = cv2.imread(os.path.join(root, fn), cv2.IMREAD_GRAYSCALE)
+    img = cv2.imread(os.path.join(root), cv2.IMREAD_GRAYSCALE)
     
     if fix_borders:
         img = cv2.copyMakeBorder(img, replicate, replicate, replicate, replicate, cv2.BORDER_REPLICATE)
@@ -252,6 +253,7 @@ def add_direction_change_nodes(pts, s, e, s_coord, e_coord):
 
 def build_graph(root, fn, debug=False, threshes={'2': .3, '3': .3, '4': .3, '5': .2}, add_small=True, fix_borders=True):
     city = os.path.splitext(fn)[0]
+
     img_copy, ske = make_skeleton(root, fn, debug, threshes, fix_borders)
     if ske is None:
         return city, [linestring.format("EMPTY")]
@@ -330,8 +332,9 @@ if __name__ == "__main__":
     txt_name = os.path.join(os.path.dirname(os.path.abspath(args.image_path)), args.image_path.split('/')[-1].split('.')[0] + ".txt")
     root = os.path.join(results_root)
     f = partial(build_graph, root)
-    l = [v for v in os.listdir(root) if prefix in v]
-    l = list(sorted(l))
+    #l = [v for v in os.listdir(root) if prefix in v]
+    #l = list(sorted(l))
+    l = [root]
     with Pool() as p:
         data = p.map(f, l)
     all_data = []

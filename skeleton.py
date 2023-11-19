@@ -73,8 +73,8 @@ def get_angle(p0, p1=np.array([0,0]), p2=None):
 
 def preprocess(img, thresh):
     img = (img > (255 * thresh)).astype(np.bool)
-    remove_small_objects(img, 300, in_place=True)
-    remove_small_holes(img, 300, in_place=True)
+    remove_small_objects(img, 300)
+    remove_small_holes(img, 300)
     # img = cv2.dilate(img.astype(np.uint8), np.ones((7, 7)))
     return img
 
@@ -127,7 +127,7 @@ def line_points_dist(line1, pts):
 
 def remove_small_terminal(G):
     deg = G.degree()
-    terminal_points = [i for i, d in deg.items() if d == 1]
+    terminal_points = [i for (i, d) in deg if d == 1]
     edges = list(G.edges())
     for s, e in edges:
         if s == e:
@@ -154,7 +154,7 @@ def make_skeleton(root, fn, debug, threshes, fix_borders):
     rec = replicate + clip
     # open and skeletonize
     img = cv2.imread(os.path.join(root, fn), cv2.IMREAD_GRAYSCALE)
-    assert img.shape == (1300, 1300)
+    
     if fix_borders:
         img = cv2.copyMakeBorder(img, replicate, replicate, replicate, replicate, cv2.BORDER_REPLICATE)
     img_copy = None
@@ -163,7 +163,8 @@ def make_skeleton(root, fn, debug, threshes, fix_borders):
             img_copy = np.copy(img[replicate:-replicate,replicate:-replicate])
         else:
             img_copy = np.copy(img)
-    thresh = threshes[fn[4]]
+   
+    thresh = threshes['2']
     img = preprocess(img, thresh)
     if not np.any(img):
         return None, None
@@ -175,7 +176,7 @@ def make_skeleton(root, fn, debug, threshes, fix_borders):
 
 
 def add_small_segments(G, terminal_points, terminal_lines):
-    node = G.node
+    node = G.nodes()
     term = [node[t]['o'] for t in terminal_points]
     dists = squareform(pdist(term))
     possible = np.argwhere((dists > 0) & (dists < 20))
@@ -208,7 +209,7 @@ def add_small_segments(G, terminal_points, terminal_lines):
 
     dists = {}
     for s, e in good_pairs:
-        s_d, e_d = [G.node[s]['o'], G.node[e]['o']]
+        s_d, e_d = [G.nodes[s]['o'], G.nodes[e]['o']]
         dists[(s, e)] = np.linalg.norm(s_d - e_d)
 
     dists = OrderedDict(sorted(dists.items(), key=lambda x: x[1]))
@@ -219,7 +220,7 @@ def add_small_segments(G, terminal_points, terminal_lines):
         if s not in added and e not in added:
             added.add(s)
             added.add(e)
-            s_d, e_d = G.node[s]['o'], G.node[e]['o']
+            s_d, e_d = G.nodes[s]['o'], G.nodes[e]['o']
             line_strings = ["{1:.1f} {0:.1f}".format(*c.tolist()) for c in [s_d, e_d]]
             line = '(' + ", ".join(line_strings) + ')'
             wkt.append(linestring.format(line))
@@ -254,10 +255,10 @@ def build_graph(root, fn, debug=False, threshes={'2': .3, '3': .3, '4': .3, '5':
     node_lines = graph2lines(G)
     if not node_lines:
         return city, [linestring.format("EMPTY")]
-    node = G.node
+    node = G.nodes()
     deg = G.degree()
     wkt = []
-    terminal_points = [i for i, d in deg.items() if d == 1]
+    terminal_points = [i for i, d in deg if d == 1]
 
     terminal_lines = {}
     vertices = []
@@ -319,11 +320,11 @@ def build_graph(root, fn, debug=False, threshes={'2': .3, '3': .3, '4': .3, '5':
     return city, wkt
 
 if __name__ == "__main__":
-    prefix = 'AOI'
-    results_root = r'/results/results'
+    prefix = ''
+    results_root = "./data/mask"
     # results_root = r'd:\tmp\roads\albu\results\results'
     # root = os.path.join(results_root, r'results\2m_4fold_512_30e_d0.2_g0.2')
-    root = os.path.join(results_root, r'2m_4fold_512_30e_d0.2_g0.2_test', 'merged')
+    root = os.path.join(results_root)
     f = partial(build_graph, root)
     l = [v for v in os.listdir(root) if prefix in v]
     l = list(sorted(l))
@@ -334,4 +335,4 @@ if __name__ == "__main__":
         for val in v:
             all_data.append((k, val))
     df = pd.DataFrame(all_data, columns=['ImageId', 'WKT_Pix'])
-    df.to_csv(sys.argv[1] + '.txt', index=False)
+    df.to_csv('aaa.txt', index=False)

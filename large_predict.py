@@ -16,6 +16,12 @@ from utils import update_config, get_csv_folds
 import argparse
 import json
 from config import Config
+from image_to_wkt import build_graph
+from functools import partial
+from multiprocessing import Pool
+from png_to_tif import extract_tags_from_tif
+from png_to_tif import create_tif_with_tags
+from tag_extract import read_and_transform_linestring, extract_projection_info, extract_values_from_file, transform_and_save_wkt
 import shutil
 
 Image.MAX_IMAGE_PIXELS = None
@@ -137,9 +143,7 @@ def post(image_path):
     
     if vertical_combined_images:
         combined_image = np.vstack(vertical_combined_images)
-        if not os.path.exists(os.path.join(image_folder , args.image_path.split('/')[-1].split('.')[0])):
-            os.makedirs(os.path.join(image_folder , args.image_path.split('/')[-1].split('.')[0]))
-        output_path = os.path.join(image_folder , args.image_path.split('/')[-1].split('.')[0], f"{base_name}.png")
+        output_path = os.path.join(image_folder, f"{base_name}.png")
         cv2.imwrite(output_path, combined_image)
         
     # 합치기 전 마스크 조각 삭제
@@ -169,6 +173,59 @@ def post(image_path):
         os.rmdir(mask_path)
     except Exception as e:
         print(f"오류 발생: {e}")
+        
+def image_to_wkt(image_path):
+    prefix = ''
+    results_root = image_path[:-4] + "_mask.png"
+    txt_name = os.path.join(os.path.dirname(os.path.abspath(args.image_path)), args.image_path.split('/')[-1].split('.')[0] + ".txt")
+    root = os.path.join(results_root)
+    f = partial(build_graph, root)
+    #l = [v for v in os.listdir(root) if prefix in v]
+    #l = list(sorted(l))
+    l = [root]
+    with Pool() as p:
+        data = p.map(f, l)
+    all_data = []
+    for _, v in data:
+        for val in v:
+            all_data.append(val)
+            
+    with open(txt_name, 'w') as file:
+        for line in all_data:
+            file.write(line + "\n")
+            
+def png_to_tif(image_path):
+    tif_file_path = image_path
+    image_name = image_path[:-4]
+    # png_file_path = image_name + '_mask.png'
+    # output_tif_path = image_name + '_mask.tif'
+    output_txt_path = image_name + '_tags.txt'
+    
+    tags = extract_tags_from_tif(tif_file_path, output_txt_path)
+    # create_tif_with_tags(tags, tif_file_path, png_file_path, output_tif_path)
+    
+def convert_coordinates(image_path):
+    tif_file_path = image_path
+    image_name = image_path[:-4]
+    
+    tag_file = image_name + "_tags.txt"
+    input_file = image_name + '.txt'
+    output_file = image_name + '_trans.txt'
+    final_output_file = image_name + '_trans_final.txt'
+    target_tag1 = 33922
+    target_tag2 = 33550
+    
+    origin_point = extract_values_from_file(tag_file, target_tag1, 3, 4)
+    convert_value = extract_values_from_file(tag_file, target_tag2, 0, 1)
+    
+    transform_and_save_wkt(input_file, output_file, origin_point, convert_value)
+    
+    projection_info = extract_projection_info(image_path)
+    
+    src_proj = projection_info
+    dst_proj = 'epsg:4326'
+    
+    read_and_transform_linestring(output_file, final_output_file, src_proj, dst_proj)
 
 if __name__ == "__main__":
     if args.image_path is not None:
@@ -176,4 +233,10 @@ if __name__ == "__main__":
         pre(args.image_path)
         eval_roads(args.image_path)
         post(args.image_path)
+        image_to_wkt(args.image_path)
+        png_to_tif(args.image_path)
+        convert_coordinates(args.image_path)
+        
+        
+        
     
