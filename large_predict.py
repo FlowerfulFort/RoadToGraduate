@@ -21,6 +21,7 @@ from functools import partial
 from multiprocessing import Pool
 from png_to_tif import extract_tags_from_tif
 from png_to_tif import create_tif_with_tags
+from tag_extract import read_and_transform_linestring, extract_projection_info, extract_values_from_file, transform_and_save_wkt
 
 Image.MAX_IMAGE_PIXELS = None
 
@@ -189,10 +190,35 @@ def image_to_wkt(image_path):
 def png_to_tif(image_path):
     tif_file_path = image_path
     image_name = image_path[:-4]
-    png_file_path = image_name + '_mask.png'
-    output_tif_path = image_name + '_mask.tif'
-
-    create_tif_with_tags(tif_file_path, png_file_path, output_tif_path)
+    # png_file_path = image_name + '_mask.png'
+    # output_tif_path = image_name + '_mask.tif'
+    output_txt_path = image_name + '_tags.txt'
+    
+    tags = extract_tags_from_tif(tif_file_path, output_txt_path)
+    # create_tif_with_tags(tags, tif_file_path, png_file_path, output_tif_path)
+    
+def convert_coordinates(image_path):
+    tif_file_path = image_path
+    image_name = image_path[:-4]
+    
+    tag_file = image_name + "_tags.txt"
+    input_file = image_name + '.txt'
+    output_file = image_name + '_trans.txt'
+    final_output_file = image_name + '_trans_final.txt'
+    target_tag1 = 33922
+    target_tag2 = 33550
+    
+    origin_point = extract_values_from_file(tag_file, target_tag1, 3, 4)
+    convert_value = extract_values_from_file(tag_file, target_tag2, 0, 1)
+    
+    transform_and_save_wkt(input_file, output_file, origin_point, convert_value)
+    
+    projection_info = extract_projection_info(image_path)
+    
+    src_proj = projection_info
+    dst_proj = 'epsg:4326'
+    
+    read_and_transform_linestring(output_file, final_output_file, src_proj, dst_proj)
 
 if __name__ == "__main__":
     if args.image_path is not None:
@@ -202,5 +228,8 @@ if __name__ == "__main__":
         post(args.image_path)
         image_to_wkt(args.image_path)
         png_to_tif(args.image_path)
+        convert_coordinates(args.image_path)
+        
+        
         
     

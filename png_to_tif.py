@@ -2,22 +2,23 @@ from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = None
 
-def extract_tags_from_tif(tif_file):
+def extract_tags_from_tif(tif_file, output_txt):
     try:
         with Image.open(tif_file) as img:
             tags = img.tag_v2  # 태그 정보를 가져옵니다.
+            with open(output_txt, 'w') as txt_file:
+                for tag, value in tags.items():
+                    txt_file.write(f"{tag}: {value}\n")
+            print(f"태그를 {output_txt}에 저장했습니다.")
             return tags
     except Exception as e:
         print(f"태그를 추출하는 동안 오류 발생: {e}")
         return None
 
-def create_tif_with_tags(tif_file, png_file, output_file):
+def create_tif_with_tags(tags, tif_file, png_file, output_file):
     try:
         with Image.open(tif_file) as tif_img:
             with Image.open(png_file) as png_img:
-                # tif 이미지의 태그를 가져옵니다.
-                tags = extract_tags_from_tif(tif_file)
-
                 # 새로운 tif 파일을 만들기 위해 png 이미지를 tif 이미지의 크기와 모드로 변환합니다.
                 png_img = png_img.convert(tif_img.mode)
                 png_img = png_img.resize(tif_img.size)
@@ -38,11 +39,13 @@ if __name__ == "__main__":
     tif_file_path = './data/K3A_20190120043337_21100_00324917_L1G.tif'  # 기존의 tif 파일 경로
     png_file_path = './data/K3A_20190120043337_21100_00324917_L1G_mask.png'  # 추가할 png 파일 경로
     output_tif_path = './data/K3A_20190120043337_21100_00324917_L1G_mask.tif'  # 새로운 tif 파일 경로
+    output_txt_path = './data/extracted_tags.txt'
 
-    tags = extract_tags_from_tif(tif_file_path)
+    tags = extract_tags_from_tif(tif_file_path, output_txt_path)
     if tags:
         print("추출된 태그:")
         for tag, value in tags.items():
             print(f"{tag}: {value}")
 
-    create_tif_with_tags(tif_file_path, png_file_path, output_tif_path)
+    create_tif_with_tags(tags, tif_file_path, png_file_path, output_tif_path)
+
