@@ -4,7 +4,6 @@ cv2.setNumThreads(0)
 cv2.ocl.setUseOpenCL(False)
 import numpy as np
 import torch
-import torch.nn.functional as F
 # torch.backends.cudnn.benchmark = True
 import tqdm
 from torch.serialization import SourceChangeWarning
@@ -13,32 +12,27 @@ import warnings
 from dataset.neural_dataset import SequentialDataset
 from torch.utils.data.dataloader import DataLoader as PytorchDataLoader
 
-
 class flip:
     FLIP_NONE=0
     FLIP_LR=1
     FLIP_FULL=2
-
 
 def flip_tensor_lr(batch):
     columns = batch.data.size()[-1]
     index = torch.autograd.Variable(torch.LongTensor(list(reversed(range(columns)))).cuda())
     return batch.index_select(3, index)
 
-
 def flip_tensor_ud(batch):
     rows = batch.data.size()[-2]
     index = torch.autograd.Variable(torch.LongTensor(list(reversed(range(rows)))).cuda())
     return batch.index_select(2, index)
 
-
 def to_numpy(batch):
     return np.moveaxis(batch.data.cpu().numpy(), 1, -1)
 
-
 def predict(model, batch, flips=flip.FLIP_NONE):
     # predict with tta on gpu
-    pred1 = F.sigmoid(model(batch))
+    pred1 = torch.sigmoid(model(batch))
     if flips > flip.FLIP_NONE:
         pred2 = flip_tensor_lr(model(flip_tensor_lr(batch)))
         masks = [pred1, pred2]
@@ -46,11 +40,10 @@ def predict(model, batch, flips=flip.FLIP_NONE):
             pred3 = flip_tensor_ud(model(flip_tensor_ud(batch)))
             pred4 = flip_tensor_ud(flip_tensor_lr(model(flip_tensor_ud(flip_tensor_lr(batch)))))
             masks.extend([pred3, pred4])
-        masks = list(map(F.sigmoid, masks))
+        masks = list(map(torch.sigmoid, masks))
         new_mask = torch.mean(torch.stack(masks, 0), 0)
         return to_numpy(new_mask)
     return to_numpy(pred1)
-
 
 def read_model(config, fold):
     # model = nn.DataParallel(torch.load(os.path.join('..', 'weights', project, 'fold{}_best.pth'.format(fold))))
@@ -59,7 +52,6 @@ def read_model(config, fold):
         model = torch.load(os.path.join(config.results_dir, 'weights', config.folder, 'fold{}_best.pth'.format(fold)))
         model.eval()
         return model
-
 
 class Evaluator:
     """
