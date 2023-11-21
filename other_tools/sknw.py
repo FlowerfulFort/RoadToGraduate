@@ -15,7 +15,7 @@ def neighbors(shape):
     return np.dot(idx, acc[::-1])
 
 
-@jit  # my mark
+# my mark
 def mark(img):  # mark the array use (0, 1, 2)
     nbs = neighbors(img.shape)
     img = img.ravel()
@@ -30,7 +30,7 @@ def mark(img):  # mark the array use (0, 1, 2)
             img[p] = 2
 
 
-@jit  # trans index to r, c...
+# trans index to r, c...
 def idx2rc(idx, acc):
     rst = np.zeros((len(idx), len(acc)), dtype=np.int16)
     for i in range(len(idx)):
@@ -40,8 +40,7 @@ def idx2rc(idx, acc):
     rst -= 1
     return rst
 
-
-@jit  # fill a node (may be two or more points)
+ # fill a node (may be two or more points)
 def fill(img, p, num, nbs, acc, buf):
     back = img[p]
     img[p] = num
@@ -62,7 +61,7 @@ def fill(img, p, num, nbs, acc, buf):
     return idx2rc(buf[:s], acc)
 
 
-@jit  # trace the edge and use a buffer, then buf.copy, if use [] numba not works
+# trace the edge and use a buffer, then buf.copy, if use [] numba not works
 def trace(img, p, nbs, acc, buf):
     c1 = 0;
     c2 = 0;
@@ -87,7 +86,7 @@ def trace(img, p, nbs, acc, buf):
     return (c1 - 10, c2 - 10, idx2rc(buf[:cur], acc))
 
 
-@jit  # parse the image then get the nodes and edges
+# parse the image then get the nodes and edges
 def parse_struc(img):
     nbs = neighbors(img.shape)
     acc = np.cumprod((1,) + img.shape[::-1][:-1])[::-1]
