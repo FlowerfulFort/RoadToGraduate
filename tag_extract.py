@@ -5,9 +5,21 @@ from shapely.geometry import Point, LineString
 from shapely.wkt import loads, dumps
 from shapely.affinity import translate
 from PIL import Image
-from png_to_tif import extract_tags_from_tif
 
 Image.MAX_IMAGE_PIXELS = None
+
+def extract_tags_from_tif(tif_file, output_txt):
+    try:
+        with Image.open(tif_file) as img:
+            tags = img.tag_v2  # 태그 정보를 가져옵니다.
+            with open(output_txt, 'w') as txt_file:
+                for tag, value in tags.items():
+                    txt_file.write(f"{tag}: {value}\n")
+            print(f"태그를 {output_txt}에 저장했습니다.")
+            return tags
+    except Exception as e:
+        print(f"태그를 추출하는 동안 오류 발생: {e}")
+        return None
 
 def extract_projection_info(geotiff_path):
     dataset = gdal.Open(geotiff_path)
@@ -78,8 +90,7 @@ def transform_and_save_wkt(input_file, output_file, transform_values, convert_va
             # 변환된 좌표를 새로운 WKT로 저장
             new_wkt = f"{geometry.geom_type.upper()} ({', '.join([f'{x} {y}' for x, y in transformed_coordinates])})"
             outfile.write(new_wkt + '\n')
-
-"""            
+"""     
 # GeoTIFF 파일 경로를 지정
 geotiff_path = "./data/K3A_20190120043337_21100_00324917_L1G.tif"
 output_path = "./data/K3A_20190120043337_21100_00324917_L1G_tags.txt"
@@ -116,5 +127,4 @@ final_output_file = "./data/K3A_20190120043337_21100_00324917_L1G_trans_final.tx
 
 # 좌표 변환 및 파일 저장
 read_and_transform_linestring(output_file, final_output_file, src_proj, dst_proj)
-
 """
