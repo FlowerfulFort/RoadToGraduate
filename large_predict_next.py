@@ -87,30 +87,31 @@ def remove_directory(directory_path):
 
 # 메인 함수
 def main(image_path, intermediate_dir, image_name, config, args):
-    print('eval start')
+    # print('eval start')
     dataset_dir = os.path.join(os.path.dirname(image_path))
     image_dir = os.path.dirname(image_path)
+    # image_dir = os.path.join(*image_path.split('/')[:-1])
     final_output = os.path.join(image_dir, f"{image_name}.txt") #최종 산물 저장 경로, 현재는 원본 이미지와 같은 경로
             
-    preprocess_image(image_path, intermediate_dir, image_name)
+    # preprocess_image(image_path, intermediate_dir, image_name)
 
-    rows, cols = 512, 512
-    config = update_config(config, target_rows=rows, target_cols=cols)
-    image_suffix=None
-    fn_mapping = {'masks': lambda name: os.path.splitext(name)[0] + '.png'}
-    ds = ReadingImageProvider(RawImageType,os.path.join(intermediate_dir, image_name), fn_mapping, image_suffix=image_suffix)
+    # rows, cols = 512, 512
+    # config = update_config(config, target_rows=rows, target_cols=cols)
+    # image_suffix=None
+    # fn_mapping = {'masks': lambda name: os.path.splitext(name)[0] + '.png'}
+    # ds = ReadingImageProvider(RawImageType,os.path.join(intermediate_dir, image_name), fn_mapping, image_suffix=image_suffix)
     
-    folds = [([], list(range(len(ds)))) for i in range(4)]
-    num_workers = int(os.getenv('EVAL_WORKER', '16'))
-    keval = CropEvaluator(config, ds, test=not args.training, flips=3, num_workers=num_workers, border=0)
+    # folds = [([], list(range(len(ds)))) for i in range(4)]
+    # num_workers = int(os.getenv('EVAL_WORKER', '16'))
+    # keval = CropEvaluator(config, ds, test=not args.training, flips=3, num_workers=num_workers, border=0)
     
-    for fold, (_, e) in enumerate(folds):
-        if args.fold is not None and int(args.fold) != fold:
-            continue
-        keval.predict(intermediate_dir, image_name, fold, e)
-        break
-    # postprocess_image(intermediate_dir, image_name)
-    # convert_image_to_wkt(image_path, intermediate_dir, final_output, image_name)
+    # for fold, (_, e) in enumerate(folds):
+    #     if args.fold is not None and int(args.fold) != fold:
+    #         continue
+    #     keval.predict(intermediate_dir, image_name, fold, e)
+    #     break
+    postprocess_image(intermediate_dir, image_name)
+    convert_image_to_wkt(image_path, intermediate_dir, final_output, image_name)
 
                                   
 if __name__ == "__main__":
@@ -143,4 +144,4 @@ if __name__ == "__main__":
 
     main(args.image_path, intermediate_dir, image_name, config, args)
     
-    # remove_directory(intermediate_dir)
+    remove_directory(intermediate_dir)
