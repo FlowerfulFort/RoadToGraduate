@@ -27,7 +27,7 @@ class CropEvaluator(Evaluator):
         self.current_prediction = None
         self.current_image_name = None
 
-    def process_batch(self, predicted, model, data, prefix=""):
+    def process_batch(self, predicted, model, data, intermediate_dir, image_name, prefix=""):
         names = data['image_name']
         config = self.config
         batch_geometry = self.parse_geometry(data['geometry'])
@@ -40,7 +40,7 @@ class CropEvaluator(Evaluator):
                 if self.current_image_name is None:
                     self.current_image_name = name
                 else:
-                    self.on_image_constructed(self.current_image_name, self.current_prediction / self.current_mask, prefix=prefix)
+                    self.on_image_constructed(self.current_image_name, self.current_prediction / self.current_mask, intermediate_dir, image_name, prefix=prefix)
                 self.construct_big_image(geometry)
             self.current_prediction[sy + self.border:sy + config.target_rows, sx + self.border:sx + config.target_cols] += pred
             self.current_mask[sy+self.border:sy + config.target_rows, sx + self.border:sx + config.target_cols] += 1
@@ -64,18 +64,17 @@ class CropEvaluator(Evaluator):
         self.current_mask = np.zeros((geometry['rows'], geometry['cols']), np.uint8)
         self.current_prediction = np.zeros((geometry['rows'], geometry['cols']), np.float32)
 
-    def save(self, name, prediction, prefix=""):
-        dir_ = os.path.dirname(os.path.abspath(name))
+    def save(self, name, prediction, intermediate_dir, image_name, prefix=""):
         index1 = name.rfind("_")
         name1 = name[:index1]
         index2 = name1.rfind("_")
-        dir_name = name1[:index2]
-        if not os.path.exists(os.path.join(dir_, dir_name)):
-            os.makedirs(os.path.join(dir_, dir_name))
-        cv2.imwrite(os.path.join(os.path.join(dir_, dir_name), prefix + name), (prediction * 255).astype(np.uint8))
+        dir_name = os.path.join(intermediate_dir, image_name + '_mask')
+        if not os.path.exists(dir_name):
+            os.makedirs(dir_name)
+        cv2.imwrite(os.path.join(dir_name, name), (prediction * 255).astype(np.uint8))
         
         #cv2.imwrite(os.path.join('/results', 'full', prefix + name), (prediction * 255).astype(np.uint8))
         
-    def post_predict_action(self, prefix):
-        self.on_image_constructed(self.current_image_name, self.current_prediction / self.current_mask, prefix=prefix)
+    def post_predict_action(self, intermediate_dir, image_name, prefix):
+        self.on_image_constructed(self.current_image_name, self.current_prediction / self.current_mask, intermediate_dir, image_name, prefix=prefix)
         self.current_image_name = None
