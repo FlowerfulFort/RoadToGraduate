@@ -85,7 +85,7 @@ def get_angle(p0, p1=np.array([0,0]), p2=None):
     return np.degrees(angle)
 
 def preprocess(img, thresh):
-    img = (img > (255 * thresh)).astype(np.bool)
+    img = (img > (255 * thresh)).astype(bool)
     remove_small_objects(img, 300)
     remove_small_holes(img, 300)
     # img = cv2.dilate(img.astype(np.uint8), np.ones((7, 7)))

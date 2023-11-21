@@ -125,8 +125,11 @@ if __name__ == "__main__":
     parser.add_argument('--training', action='store_true')
     args = parser.parse_args()
 
-    with open('./resnet34_512_02_02.json', 'r') as f:
+    my_path = os.path.dirname(os.path.realpath(__file__))
+    with open(f'{my_path}/resnet34_512_02_02.json', 'r') as f:
         cfg = json.load(f)
+    # with open('./resnet34_512_02_02.json', 'r') as f:
+    #     cfg = json.load(f)
     
     config = Config(**cfg)
     config = update_config(config, dataset_path=os.path.dirname(os.path.abspath(args.image_path)))
