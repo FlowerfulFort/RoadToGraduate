@@ -81,17 +81,18 @@ class Evaluator:
         self.val_transforms = val_transforms
         os.makedirs(self.save_dir, exist_ok=True)
 
-    def predict(self, fold, val_indexes):
+    def predict(self, intermediate_dir, image_name, fold, val_indexes):
         prefix = ('fold' + str(fold) + "_") if (self.test and fold is not None) else ""
         val_dataset = SequentialDataset(self.ds, val_indexes, stage='test', config=self.config, transforms=self.val_transforms)
         val_dl = PytorchDataLoader(val_dataset, batch_size=self.config.predict_batch_size, num_workers=self.num_workers, drop_last=False)
         model = read_model(self.config, fold)
         pbar = tqdm.tqdm(val_dl, total=len(val_dl))
         for data in pbar:
-            samples = torch.autograd.Variable(data['image'], volatile=True).cuda()
+            with torch.no_grad():
+                samples = torch.autograd.Variable(data['image']).cuda()
             predicted = predict(model, samples, flips=self.flips)
-            self.process_batch(predicted, model, data, prefix=prefix)
-        self.post_predict_action(prefix=prefix)
+            self.process_batch(predicted, model, data, intermediate_dir, image_name, prefix=prefix)
+        self.post_predict_action(intermediate_dir, image_name, prefix=prefix)
 
     def cut_border(self, image):
         if image is None:
@@ -99,16 +100,16 @@ class Evaluator:
         #return image if not self.border else image[self.border:-self.border, self.border:-self.border, ...]
         return image
 
-    def on_image_constructed(self, name, prediction, prefix=""):
+    def on_image_constructed(self, name, prediction, intermediate_dir, image_name, prefix=""):
         prediction = self.cut_border(prediction)
         prediction = np.squeeze(prediction)
-        self.save(name, prediction, prefix=prefix)
+        self.save(name, prediction, intermediate_dir, image_name, prefix=prefix)
 
-    def save(self, name, prediction, prefix=""):
+    def save(self, name, prediction, prefix="", ):
         raise NotImplementedError
 
-    def process_batch(self, predicted, model, data, prefix=""):
+    def process_batch(self, predicted, model, data, intermediate_dir, image_name, prefix=""):
         raise NotImplementedError
 
-    def post_predict_action(self, prefix):
+    def post_predict_action(self, intermediate_dir, image_name, prefix):
         pass
